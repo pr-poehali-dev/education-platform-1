@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Icon from '@/components/ui/icon';
 
 type UserRole = 'student' | 'teacher' | 'admin';
@@ -66,6 +68,12 @@ const Index = () => {
     { course: 'Физика для начинающих', score: 95, date: '2024-08-08', passed: true },
   ];
 
+  const studentsList = [
+    { id: 1, name: 'Александр Иванов', email: 'alex@example.com', active: true, expiresAt: '2024-12-31', progress: 75 },
+    { id: 2, name: 'Мария Петрова', email: 'maria@example.com', active: false, expiresAt: '2024-08-01', progress: 45 },
+    { id: 3, name: 'Игорь Сидоров', email: 'igor@example.com', active: true, expiresAt: '2024-11-15', progress: 90 },
+  ];
+
   const getRolePermissions = (role: UserRole) => {
     switch (role) {
       case 'admin':
@@ -74,14 +82,24 @@ const Index = () => {
           canCreateCourses: true,
           canViewAllResults: true,
           canManageSystem: true,
+          canManageStudents: true,
+          canAssignTests: true,
+          hasLibrary: false,
+          canTakeTests: false,
+          showTabs: ['dashboard', 'courses', 'results', 'students', 'admin'],
           title: 'Администратор'
         };
       case 'teacher':
         return {
-          canCreateUsers: true,
+          canCreateUsers: false,
           canCreateCourses: false,
           canViewAllResults: true,
           canManageSystem: false,
+          canManageStudents: true,
+          canAssignTests: true,
+          hasLibrary: false,
+          canTakeTests: false,
+          showTabs: ['dashboard', 'courses', 'results', 'students'],
           title: 'Преподаватель'
         };
       default:
@@ -90,12 +108,35 @@ const Index = () => {
           canCreateCourses: false,
           canViewAllResults: false,
           canManageSystem: false,
+          canManageStudents: false,
+          canAssignTests: false,
+          hasLibrary: false,
+          canTakeTests: true,
+          showTabs: ['dashboard', 'courses', 'results'],
           title: 'Ученик'
         };
     }
   };
 
   const permissions = getRolePermissions(currentRole);
+
+  const getTabsToShow = () => {
+    const baseTabs = [
+      { value: 'dashboard', label: 'Дашборд', icon: 'Home' },
+      { value: 'courses', label: 'Курсы', icon: 'BookOpen' },
+      { value: 'results', label: 'Результаты', icon: 'BarChart3' }
+    ];
+
+    if (permissions.canManageStudents) {
+      baseTabs.push({ value: 'students', label: 'Ученики', icon: 'Users' });
+    }
+
+    if (permissions.canManageSystem) {
+      baseTabs.push({ value: 'admin', label: 'Админка', icon: 'Settings' });
+    }
+
+    return baseTabs;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -161,29 +202,13 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8">
-            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-              <Icon name="Home" size={16} />
-              <span>Дашборд</span>
-            </TabsTrigger>
-            <TabsTrigger value="courses" className="flex items-center space-x-2">
-              <Icon name="BookOpen" size={16} />
-              <span>Курсы</span>
-            </TabsTrigger>
-            <TabsTrigger value="library" className="flex items-center space-x-2">
-              <Icon name="Library" size={16} />
-              <span>Библиотека</span>
-            </TabsTrigger>
-            <TabsTrigger value="results" className="flex items-center space-x-2">
-              <Icon name="BarChart3" size={16} />
-              <span>Результаты</span>
-            </TabsTrigger>
-            {permissions.canManageSystem && (
-              <TabsTrigger value="admin" className="flex items-center space-x-2">
-                <Icon name="Settings" size={16} />
-                <span>Админка</span>
+          <TabsList className={`grid w-full grid-cols-${getTabsToShow().length} mb-8`}>
+            {getTabsToShow().map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="flex items-center space-x-2">
+                <Icon name={tab.icon as any} size={16} />
+                <span>{tab.label}</span>
               </TabsTrigger>
-            )}
+            ))}
           </TabsList>
 
           {/* Dashboard */}
@@ -207,12 +232,17 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Завершено</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        {currentRole === 'student' ? 'Завершено' : 'Всего учеников'}
+                      </p>
                       <p className="text-3xl font-bold text-gray-900">
-                        {courses.filter(c => c.status === 'completed').length}
+                        {currentRole === 'student' ? 
+                          courses.filter(c => c.status === 'completed').length :
+                          studentsList.length
+                        }
                       </p>
                     </div>
-                    <Icon name="CheckCircle" size={32} className="text-green-500" />
+                    <Icon name={currentRole === 'student' ? "CheckCircle" : "Users"} size={32} className="text-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -221,12 +251,17 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Тесты пройдено</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        {currentRole === 'student' ? 'Тесты пройдено' : 'Активных учеников'}
+                      </p>
                       <p className="text-3xl font-bold text-gray-900">
-                        {courses.reduce((acc, c) => acc + c.testsCompleted, 0)}
+                        {currentRole === 'student' ? 
+                          courses.reduce((acc, c) => acc + c.testsCompleted, 0) :
+                          studentsList.filter(s => s.active).length
+                        }
                       </p>
                     </div>
-                    <Icon name="FileText" size={32} className="text-purple-500" />
+                    <Icon name={currentRole === 'student' ? "FileText" : "UserCheck"} size={32} className="text-purple-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -235,12 +270,17 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Средний балл</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        {currentRole === 'student' ? 'Средний балл' : 'Курсов в системе'}
+                      </p>
                       <p className="text-3xl font-bold text-gray-900">
-                        {Math.round(testResults.reduce((acc, r) => acc + r.score, 0) / testResults.length)}%
+                        {currentRole === 'student' ? 
+                          `${Math.round(testResults.reduce((acc, r) => acc + r.score, 0) / testResults.length)}%` :
+                          courses.length
+                        }
                       </p>
                     </div>
-                    <Icon name="TrendingUp" size={32} className="text-orange-500" />
+                    <Icon name={currentRole === 'student' ? "TrendingUp" : "BookText"} size={32} className="text-orange-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -249,29 +289,54 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Текущие курсы</CardTitle>
-                  <CardDescription>Ваш прогресс по активным курсам</CardDescription>
+                  <CardTitle>
+                    {currentRole === 'student' ? 'Текущие курсы' : 'Статистика учеников'}
+                  </CardTitle>
+                  <CardDescription>
+                    {currentRole === 'student' ? 
+                      'Ваш прогресс по активным курсам' : 
+                      'Прогресс обучения ваших учеников'
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {courses.filter(c => c.status === 'active').map(course => (
-                    <div key={course.id} className="p-4 rounded-lg border bg-card">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-medium">{course.title}</h3>
-                        <Badge variant={course.progress === 100 ? 'default' : 'secondary'}>
-                          {course.progress}%
-                        </Badge>
+                  {currentRole === 'student' ? (
+                    courses.filter(c => c.status === 'active').map(course => (
+                      <div key={course.id} className="p-4 rounded-lg border bg-card">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium">{course.title}</h3>
+                          <Badge variant={course.progress === 100 ? 'default' : 'secondary'}>
+                            {course.progress}%
+                          </Badge>
+                        </div>
+                        <Progress value={course.progress} className="mb-2" />
+                        <p className="text-sm text-gray-600">{course.testsCompleted} из {course.totalTests} тестов</p>
                       </div>
-                      <Progress value={course.progress} className="mb-2" />
-                      <p className="text-sm text-gray-600">{course.testsCompleted} из {course.totalTests} тестов</p>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    studentsList.filter(s => s.active).map(student => (
+                      <div key={student.id} className="p-4 rounded-lg border bg-card">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium">{student.name}</h3>
+                          <Badge variant="default">{student.progress}%</Badge>
+                        </div>
+                        <Progress value={student.progress} className="mb-2" />
+                        <p className="text-sm text-gray-600">Активен до: {student.expiresAt}</p>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
                   <CardTitle>Последние результаты</CardTitle>
-                  <CardDescription>Результаты недавно пройденных тестов</CardDescription>
+                  <CardDescription>
+                    {currentRole === 'student' ? 
+                      'Результаты недавно пройденных тестов' : 
+                      'Недавние результаты учеников'
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {testResults.map((result, index) => (
@@ -303,7 +368,12 @@ const Index = () => {
             <div className="mb-6 flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Курсы</h2>
-                <p className="text-gray-600">Изучайте новые знания и проходите тесты</p>
+                <p className="text-gray-600">
+                  {currentRole === 'student' ? 
+                    'Изучайте новые знания и проходите тесты' :
+                    'Управляйте курсами и назначайте тесты ученикам'
+                  }
+                </p>
               </div>
               {permissions.canCreateCourses && (
                 <Button className="flex items-center space-x-2">
@@ -330,13 +400,15 @@ const Index = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Прогресс</span>
-                          <span>{course.progress}%</span>
+                      {currentRole === 'student' && (
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>Прогресс</span>
+                            <span>{course.progress}%</span>
+                          </div>
+                          <Progress value={course.progress} />
                         </div>
-                        <Progress value={course.progress} />
-                      </div>
+                      )}
                       
                       <div className="flex justify-between items-center text-sm text-gray-600">
                         <span>Преподаватель: {course.instructor}</span>
@@ -344,14 +416,29 @@ const Index = () => {
                       </div>
                       
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Icon name="BookOpen" size={14} className="mr-1" />
-                          Изучить
-                        </Button>
-                        <Button variant="default" size="sm" className="flex-1">
-                          <Icon name="FileText" size={14} className="mr-1" />
-                          Тест
-                        </Button>
+                        {currentRole === 'student' ? (
+                          <>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Icon name="BookOpen" size={14} className="mr-1" />
+                              Изучить
+                            </Button>
+                            <Button variant="default" size="sm" className="flex-1">
+                              <Icon name="FileText" size={14} className="mr-1" />
+                              Тест
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Icon name="Edit" size={14} className="mr-1" />
+                              Редактировать
+                            </Button>
+                            <Button variant="default" size="sm" className="flex-1">
+                              <Icon name="UserPlus" size={14} className="mr-1" />
+                              Назначить
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -360,95 +447,16 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          {/* Library */}
-          <TabsContent value="library" className="animate-fade-in">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Библиотека</h2>
-              <p className="text-gray-600">Теоретические материалы и документы</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Материалы по математике</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {[
-                      'Алгебраические уравнения',
-                      'Геометрические фигуры',
-                      'Тригонометрические функции',
-                      'Производные и интегралы',
-                      'Теория вероятности'
-                    ].map((topic, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer">
-                        <div className="flex items-center space-x-3">
-                          <Icon name="FileText" size={16} className="text-red-500" />
-                          <span>{topic}</span>
-                          <Badge variant="outline">PDF</Badge>
-                        </div>
-                        <Icon name="ExternalLink" size={16} className="text-gray-400" />
-                      </div>
-                    ))}
-                    <Button variant="outline" className="w-full mt-4">
-                      <Icon name="PlayCircle" size={16} className="mr-2" />
-                      Пройти тест по математике
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Быстрый доступ</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Icon name="History" size={16} className="mr-2" />
-                      Недавние документы
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Icon name="Star" size={16} className="mr-2" />
-                      Избранные материалы
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Icon name="Download" size={16} className="mr-2" />
-                      Загруженные файлы
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle>Статистика тестов</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Всего попыток:</span>
-                        <span className="font-medium">47</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Успешных:</span>
-                        <span className="font-medium text-green-600">32</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Процент успеха:</span>
-                        <span className="font-medium">68%</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
           {/* Results */}
           <TabsContent value="results" className="animate-fade-in">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Результаты тестирования</h2>
-              <p className="text-gray-600">Анализ успеваемости и прогресса</p>
+              <p className="text-gray-600">
+                {currentRole === 'student' ? 
+                  'Анализ вашей успеваемости и прогресса' :
+                  'Результаты тестов всех учеников'
+                }
+              </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -517,12 +525,135 @@ const Index = () => {
             </div>
           </TabsContent>
 
+          {/* Students Management */}
+          {permissions.canManageStudents && (
+            <TabsContent value="students" className="animate-fade-in">
+              <div className="mb-6 flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Управление учениками</h2>
+                  <p className="text-gray-600">Создание и управление учетными записями учеников</p>
+                </div>
+                <Button className="flex items-center space-x-2">
+                  <Icon name="UserPlus" size={16} />
+                  <span>Добавить ученика</span>
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Список учеников</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {studentsList.map(student => (
+                          <div key={student.id} className="p-4 rounded-lg border bg-card">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h3 className="font-medium">{student.name}</h3>
+                                <p className="text-sm text-gray-600">{student.email}</p>
+                                <p className="text-xs text-gray-500">
+                                  Активен до: {student.expiresAt}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant={student.active ? 'default' : 'secondary'}>
+                                  {student.active ? 'Активен' : 'Неактивен'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="mb-3">
+                              <div className="flex justify-between text-sm mb-1">
+                                <span>Прогресс обучения</span>
+                                <span>{student.progress}%</span>
+                              </div>
+                              <Progress value={student.progress} />
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm">
+                                <Icon name="Edit" size={14} className="mr-1" />
+                                Редактировать
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Icon name="PlayCircle" size={14} className="mr-1" />
+                                Назначить тест
+                              </Button>
+                              {!student.active && (
+                                <Button variant="default" size="sm">
+                                  <Icon name="UserCheck" size={14} className="mr-1" />
+                                  Активировать
+                                </Button>
+                              )}
+                              {permissions.canCreateUsers && (
+                                <Button variant="destructive" size="sm">
+                                  <Icon name="UserX" size={14} className="mr-1" />
+                                  Удалить
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Создание ученика</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label htmlFor="studentName">Имя ученика</Label>
+                        <Input id="studentName" placeholder="Введите имя" />
+                      </div>
+                      <div>
+                        <Label htmlFor="studentEmail">Email</Label>
+                        <Input id="studentEmail" type="email" placeholder="email@example.com" />
+                      </div>
+                      <div>
+                        <Label htmlFor="expirationDate">Активен до</Label>
+                        <Input id="expirationDate" type="date" />
+                      </div>
+                      <Button className="w-full">
+                        <Icon name="Plus" size={16} className="mr-2" />
+                        Создать ученика
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle>Быстрые действия</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Icon name="UserCheck" size={16} className="mr-2" />
+                        Активировать всех
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Icon name="FileText" size={16} className="mr-2" />
+                        Массовое назначение тестов
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start">
+                        <Icon name="Download" size={16} className="mr-2" />
+                        Экспорт результатов
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
           {/* Admin Panel */}
           {permissions.canManageSystem && (
             <TabsContent value="admin" className="animate-fade-in">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Администрирование</h2>
-                <p className="text-gray-600">Управление системой и пользователями</p>
+                <p className="text-gray-600">Управление системой, пользователями и курсами</p>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -541,11 +672,15 @@ const Index = () => {
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <Icon name="Shield" size={16} className="mr-2" />
-                      Создать админа
+                      Создать администратора
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <Icon name="List" size={16} className="mr-2" />
-                      Список пользователей
+                      Список всех пользователей
+                    </Button>
+                    <Button variant="destructive" className="w-full justify-start">
+                      <Icon name="UserX" size={16} className="mr-2" />
+                      Удаление пользователей
                     </Button>
                   </CardContent>
                 </Card>
@@ -565,11 +700,15 @@ const Index = () => {
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <Icon name="FileText" size={16} className="mr-2" />
-                      Управление тестами
+                      Управление тестами в курсах
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <Icon name="Upload" size={16} className="mr-2" />
                       Загрузить материалы
+                    </Button>
+                    <Button variant="destructive" className="w-full justify-start">
+                      <Icon name="Trash2" size={16} className="mr-2" />
+                      Удаление курсов
                     </Button>
                   </CardContent>
                 </Card>
@@ -585,11 +724,19 @@ const Index = () => {
                         <span className="font-medium">247</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm">Активных курсов:</span>
+                        <span className="text-sm">Учителей:</span>
+                        <span className="font-medium">12</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Активных учеников:</span>
+                        <span className="font-medium">218</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Курсов в системе:</span>
                         <span className="font-medium">18</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm">Тестов в системе:</span>
+                        <span className="text-sm">Тестов в курсах:</span>
                         <span className="font-medium">156</span>
                       </div>
                       <div className="flex justify-between">
@@ -597,6 +744,10 @@ const Index = () => {
                         <span className="font-medium">89%</span>
                       </div>
                     </div>
+                    <Button variant="outline" className="w-full mt-4">
+                      <Icon name="BarChart3" size={16} className="mr-2" />
+                      Подробная статистика
+                    </Button>
                   </CardContent>
                 </Card>
               </div>
